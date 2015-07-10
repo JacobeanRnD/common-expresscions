@@ -1,168 +1,95 @@
-#!/usr/bin/env node
 'use strict';
 
-var smaasApi = require('./app/api'),
-  cors = require('cors'),
-  scxml = require('scxml'),
+var scxml = require('scxml'),
   fs = require('fs'),
-	validate = require('./app/validate-scxml').validateCreateScxmlRequest;
+  express = require('express'),
+  bodyParser = require('body-parser'),
+  smaasJSON = require('smaas-swagger-spec'),
+  path = require('path');
 
-//CLI: scxmld statechartName [instanceId]
-//scxmld.initApi({pathToModel : 'index.scxml', instanceId : null || instanceId})
+function init(initApi, pathToModel, cb){
+  var app = express();
 
-function initExpress (opts, cb) {
-  opts = opts || {};
-  opts.port = opts.port || process.env.PORT || 8002;
-
-  var express = require('express'),
-  path = require('path'),
-  logger = require('morgan'),
-  app = express();
-
-  app.use(logger('dev'));
-  
-  // buffer the body
-  app.use(function(req, res, next) {
-    req.body = '';
-    req.on('data', function(data) {
-      return req.body += data;
-    });
-    return req.on('end', next);
+  //init swagger
+  smaasJSON.host = process.env.HOST || 'localhost:8002';
+  app.get(smaasJSON.basePath + '/smaas.json', function (req, res) {
+    res.status(200).send(smaasJSON);
   });
-  
-  var websiteUrl = 'http://localhost:' + opts.port;
-  
-  if (process.env.WEBSITE_URL) {
-    websiteUrl = process.env.WEBSITE_URL;
-  } else {
-    console.log('Missing "WEBSITE_URL" variable.');
-  }
 
-  app.use(cors({
-    origin: websiteUrl,
-    exposedHeaders: ['WWW-Authenticate', 'Location', 'X-Configuration']
-  }));
-
+  //init static visualization stuff
   app.set('views', path.join(__dirname, './views'));
   app.engine('html', require('ejs').renderFile);
   app.use(express.static(path.join(__dirname, './node_modules/expresscion-portal/app')));
   app.use(express.static(path.join(__dirname, './public')));
-
-  opts.app = app;
-
-  initApi(opts, cb);
-}
-
-function initApi(opts, cb){
-  opts = opts || {};
-  opts.port = opts.port || process.env.PORT || 8002;
-  opts.basePath = opts.basePath || '/api/v3';
-
-  if(process.env.SIMULATION_PROVIDER){
-    opts.simulationProvider = require(process.env.SIMULATION_PROVIDER);
-  }
-
-  opts.middlewares = opts.middlewares || [];
-
-  process.env.SEND_URL = process.env.SEND_URL || ('http://localhost:' + opts.port + opts.basePath + '/');
-
-  if(!opts.app) {
-    return cb(new Error('Missing express app'));
-  }
-
-  var totalRequestCount = 0;
-  opts.app.use(function (req, res, next) {
-    //We are providing an id to each request and response
-    //So we can unregister "_changes" listeners on stateless servers
-    req.uniqueId = res.uniqueId = totalRequestCount++;
-
-    next();
+  app.get('/:InstanceId/_viz', function (req, res) {
+    res.render('viz.html', {
+      type: 'instance'
+    });
+  });
+  app.get('/_viz', function (req, res) {
+    res.render('viz.html', {
+      type: 'statechart'
+    });
   });
 
-  fs.readFile(opts.pathToModel, 'utf8', function (err, scxmlString) {
-    if(err) throw err;
+  var scxmlString = fs.readFileSync(pathToModel,'utf8');
 
-    validate(scxmlString, function(scxmlSchemaErrors) {   
-      if(scxmlSchemaErrors) throw scxmlSchemaErrors;
+  //parse the SCXML and connect the SMaaS API
+  scxml.pathToModel(pathToModel, function(err, model){
 
-      scxml.pathToModel(opts.pathToModel, function(err, model){
+    if(err) return cb(err); 
 
-        var modelName = process.env.APP_NAME || model.meta.name;
+    var modelName = process.env.APP_NAME || model.meta.name;
+    var api = initApi(model, scxmlString, modelName);
 
-        // Initialize the api
-        //var simulation = opts.simulationProvider(db, model, modelName );
+    Object.keys(smaasJSON.paths).forEach(function(endpointPath){
+      var endpoint = smaasJSON.paths[endpointPath];
+      var actualPath = smaasJSON.basePath + endpointPath.replace(/{/g, ':').replace(/}/g, '');
 
-        var api = smaasApi( model, scxmlString, modelName );
+      Object.keys(endpoint).forEach(function(methodName){
+        var method = endpoint[methodName];
 
-        var smaasJSON = require('smaas-swagger-spec');
-
-        smaasJSON.host = process.env.HOST || ('localhost' + ':' + opts.port);
-        smaasJSON.basePath = opts.basePath;
-
-        opts.app.get('/smaas.json', function (req, res) {
-          res.status(200).send(smaasJSON);
-        });
-
-        opts.app.get(smaasJSON.basePath + '/:InstanceId/_viz', api.instanceViz);
-        opts.app.get(smaasJSON.basePath + '/_viz', api.statechartViz);
-
-        function methodNotImplementedMiddleware(req, res){
-          return res.send(501, { message: 'Not implemented' });
-        }
-
-        Object.keys(smaasJSON.paths).forEach(function(endpointPath){
-          var endpoint = smaasJSON.paths[endpointPath];
-          var actualPath = smaasJSON.basePath + endpointPath.replace(/{/g, ':').replace(/}/g, '');
-
-          Object.keys(endpoint).forEach(function(methodName){
-            var method = endpoint[methodName];
-
-            var handler = api[method.operationId] || methodNotImplementedMiddleware;
-            switch(methodName) {
-              case 'get': {
-                opts.app.get(actualPath, opts.middlewares, handler);
-                break;
-              }
-              case 'post': {
-                opts.app.post(actualPath, opts.middlewares, handler);
-                break;
-              }
-              case 'put': {
-                opts.app.put(actualPath, opts.middlewares, handler);
-                break;
-              }
-              case 'delete': {
-                opts.app.delete(actualPath, opts.middlewares, handler);
-                break;
-              }
-              default:{
-                console.log('Unsupported method name:', methodName);
-              }
+        var handler = api[method.operationId];
+        switch(methodName) {
+          case 'get': {
+            app.get(actualPath, handler);
+            break;
+          }
+          case 'post': {
+            if(method.consumes && method.consumes.indexOf('application/json') > -1){
+              app.post(actualPath, bodyParser.json(), onlyJsonMiddleware, handler);
+            } else {
+              app.post(actualPath, handler);
             }
-          });
-        });
-
-        cb(null, opts);
-      });    
+            break;
+          }
+          case 'put': {
+            if(method.consumes && method.consumes.indexOf('application/json') > -1){
+              app.put(actualPath, bodyParser.json(), onlyJsonMiddleware, handler);
+            } else {
+              app.put(actualPath, handler);
+            }
+            break;
+          }
+          case 'delete': {
+            app.delete(actualPath, handler);
+            break;
+          }
+          default:{
+            return cb(new Error('Unsupported method name:' + methodName));
+          }
+        }
+      });
     });
+
+    cb(null, app); 
   });
 }
 
-if(require.main === module) {
-  var opts = {};
-  opts.pathToModel = process.argv[2] || 'main.scxml';
-
-  initExpress(opts, function (err, opts) {
-    if(err) throw err;
-
-    console.log('Starting server on port:', opts.port);
-    opts.app.listen(opts.port, function () {
-      console.log('Server started');
-    });
-  });
-} else {
-  module.exports = {
-    initApi: initApi,
-    initExpress: initExpress
-  };
+function onlyJsonMiddleware(req, res, next){
+  if(!req.is('json')) return res.send(400,{"name":"Request must be of type application/json"});
+  next();
 }
+
+module.exports.initExpress = init;
+module.exports.sse = require('./sse');

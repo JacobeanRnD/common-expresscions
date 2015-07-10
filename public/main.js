@@ -3,13 +3,10 @@
 /* global alert,EventSource, $, vizType, _, window, DOMParser */
 
 $(function() {
-  var statechartUrl = '../';
-  var statechartChangesUrl = '../_changes';
-
-  if(vizType === 'statechart') {
-    statechartUrl = './';
-    statechartChangesUrl = './_changes';
-  }
+  var baseApi = '/api/v3';
+  var statechartUrl = baseApi;
+  var instanceId = window.location.pathname.split('/')[1];
+  var instanceUrl = statechartUrl + '/' + instanceId;
 
   var vizArea = $('#viz-area'),
     layout,
@@ -44,20 +41,9 @@ $(function() {
             isFirst = false;  
           }
 
-          if(!scxmlChangeSource) {
-            scxmlChangeSource = new EventSource(statechartChangesUrl);
-
-            scxmlChangeSource.addEventListener('onChange', function() {
-              getScxml();
-            }, false);
-          }
-
-          if(vizType === 'statechart') {
-            return;
-          }
-
           if (!eventChangeSource) {
-            eventChangeSource = new EventSource('./_changes');
+            console.log('instanceUrl ',instanceUrl);
+            eventChangeSource = new EventSource(instanceUrl + '/_changes');
 
             eventChangeSource.addEventListener('onEntry', function(e) {
               highlight('onEntry', e.data);
@@ -70,7 +56,7 @@ $(function() {
 
           $.ajax({
             type: 'GET',
-            url: './',
+            url: instanceUrl,
             dataType: 'json'
           })
           .done(function(configuration, status, xhr) {

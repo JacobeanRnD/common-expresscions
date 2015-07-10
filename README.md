@@ -1,14 +1,4 @@
-Microexpresscion is an SCXML orchestration server designed to be run on nodejs
-IoT devices, like the Intel Edison development board. 
+common-expresscions packages all the components that common between variants of
+expresscion servers, including web user interface, scxml initialization and
+common express components.
 
-Microexpresscion provides Node.js express middleware which
-implements the [State Machines as a Service (SMaaS)](https://github.com/JacobeanRnD/SMaaS-swagger-spec) 
-REST protocol. 
-
-## Installation
-
-`npm install -g microexpresscion`
-
-## Links
-
-* [State Machines as a Service: An SCXML Microservices Platform for the Internet of Things](http://scxmlworkshop.de/eics2015/submissions/State%20Machines%20as%20a%20Service.pdf)
