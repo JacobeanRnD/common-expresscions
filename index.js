@@ -17,8 +17,20 @@ function init(initApi, pathToModel, cb){
   });
 
   //init static visualization stuff
+  app.set('views', path.join(__dirname, './views'));
+  app.engine('html', require('ejs').renderFile);
   app.use(express.static(path.join(__dirname, './node_modules/expresscion-portal/app')));
   app.use(express.static(path.join(__dirname, './public')));
+  app.get('/:InstanceId/_viz', function (req, res) {
+    res.render('viz.html', {
+      type: 'instance'
+    });
+  });
+  app.get('/_viz', function (req, res) {
+    res.render('viz.html', {
+      type: 'statechart'
+    });
+  });
 
   var scxmlString = fs.readFileSync(pathToModel,'utf8');
 
@@ -45,7 +57,7 @@ function init(initApi, pathToModel, cb){
           }
           case 'post': {
             if(method.consumes && method.consumes.indexOf('application/json') > -1){
-              app.post(actualPath, bodyParser.json(), onlyJsonMiddleware, handler);
+              app.post(actualPath, bodyParser.json(), handler);
             } else {
               app.post(actualPath, handler);
             }
@@ -53,7 +65,7 @@ function init(initApi, pathToModel, cb){
           }
           case 'put': {
             if(method.consumes && method.consumes.indexOf('application/json') > -1){
-              app.put(actualPath, bodyParser.json(), onlyJsonMiddleware, handler);
+              app.put(actualPath, bodyParser.json(), handler);
             } else {
               app.put(actualPath, handler);
             }
@@ -72,11 +84,6 @@ function init(initApi, pathToModel, cb){
 
     cb(null, app); 
   });
-}
-
-function onlyJsonMiddleware(req, res, next){
-  if(!req.is('json')) return res.send(400,{"name":"Request must be of type application/json"});
-  next();
 }
 
 module.exports.initExpress = init;
