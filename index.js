@@ -11,7 +11,7 @@ function init(initApi, pathToModel, cb){
   var app = express();
 
   //init swagger
-  smaasJSON.host = process.env.HOST || 'localhost:8002';
+  smaasJSON.host = process.env.HOST || 'localhost:3000';
   app.get(smaasJSON.basePath + '/smaas.json', function (req, res) {
     res.status(200).send(smaasJSON);
   });
