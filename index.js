@@ -17,20 +17,8 @@ function init(initApi, pathToModel, cb){
   });
 
   //init static visualization stuff
-  app.set('views', path.join(__dirname, './views'));
-  app.engine('html', require('ejs').renderFile);
   app.use(express.static(path.join(__dirname, './node_modules/expresscion-portal/app')));
   app.use(express.static(path.join(__dirname, './public')));
-  app.get('/:InstanceId/_viz', function (req, res) {
-    res.render('viz.html', {
-      type: 'instance'
-    });
-  });
-  app.get('/_viz', function (req, res) {
-    res.render('viz.html', {
-      type: 'statechart'
-    });
-  });
 
   var scxmlString = fs.readFileSync(pathToModel,'utf8');
 
