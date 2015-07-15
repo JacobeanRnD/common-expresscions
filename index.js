@@ -40,49 +40,52 @@ function init(initApi, pathToModel, cb){
     if(err) return cb(err); 
 
     var modelName = process.env.APP_NAME || model.meta.name;
-    var api = initApi(model, scxmlString, modelName);
+    initApi(model, scxmlString, modelName, function(err, api){
 
-    Object.keys(smaasJSON.paths).forEach(function(endpointPath){
-      var endpoint = smaasJSON.paths[endpointPath];
-      var actualPath = smaasJSON.basePath + endpointPath.replace(/{/g, ':').replace(/}/g, '');
+      if(err) return cb(err);
 
-      Object.keys(endpoint).forEach(function(methodName){
-        var method = endpoint[methodName];
+      Object.keys(smaasJSON.paths).forEach(function(endpointPath){
+        var endpoint = smaasJSON.paths[endpointPath];
+        var actualPath = smaasJSON.basePath + endpointPath.replace(/{/g, ':').replace(/}/g, '');
 
-        var handler = api[method.operationId];
-        switch(methodName) {
-          case 'get': {
-            app.get(actualPath, handler);
-            break;
-          }
-          case 'post': {
-            if(method.consumes && method.consumes.indexOf('application/json') > -1){
-              app.post(actualPath, bodyParser.json(), handler);
-            } else {
-              app.post(actualPath, handler);
+        Object.keys(endpoint).forEach(function(methodName){
+          var method = endpoint[methodName];
+
+          var handler = api[method.operationId];
+          switch(methodName) {
+            case 'get': {
+              app.get(actualPath, handler);
+              break;
             }
-            break;
-          }
-          case 'put': {
-            if(method.consumes && method.consumes.indexOf('application/json') > -1){
-              app.put(actualPath, bodyParser.json(), handler);
-            } else {
-              app.put(actualPath, handler);
+            case 'post': {
+              if(method.consumes && method.consumes.indexOf('application/json') > -1){
+                app.post(actualPath, bodyParser.json(), handler);
+              } else {
+                app.post(actualPath, handler);
+              }
+              break;
             }
-            break;
+            case 'put': {
+              if(method.consumes && method.consumes.indexOf('application/json') > -1){
+                app.put(actualPath, bodyParser.json(), handler);
+              } else {
+                app.put(actualPath, handler);
+              }
+              break;
+            }
+            case 'delete': {
+              app.delete(actualPath, handler);
+              break;
+            }
+            default:{
+              return cb(new Error('Unsupported method name:' + methodName));
+            }
           }
-          case 'delete': {
-            app.delete(actualPath, handler);
-            break;
-          }
-          default:{
-            return cb(new Error('Unsupported method name:' + methodName));
-          }
-        }
+        });
       });
-    });
 
-    cb(null, app); 
+      cb(null, app); 
+    });
   });
 }
 
