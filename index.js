@@ -5,13 +5,18 @@ var scxml = require('scxml'),
   express = require('express'),
   bodyParser = require('body-parser'),
   smaasJSON = require('smaas-swagger-spec'),
+  urlModule = require('url'),
   path = require('path');
 
 function init(initApi, pathToModel, cb){
   var app = express();
 
+  var hostUrl = process.env.HOST_URL || 'http://localhost:3000';
+  var parsedHostUrl = urlModule.parse(hostUrl);
+
   //init swagger
-  smaasJSON.host = process.env.HOST || 'localhost:3000';
+  smaasJSON.host = parsedHostUrl.host;
+  smaasJSON.schemes = [parsedHostUrl.protocol.slice(0,-1)];
   app.get(smaasJSON.basePath + '/smaas.json', function (req, res) {
     res.status(200).send(smaasJSON);
   });
