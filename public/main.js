@@ -7,6 +7,8 @@ $(function() {
   var statechartUrl = baseApi;
   var instanceId = window.location.pathname.split('/')[1];
   var instanceUrl = statechartUrl + '/' + instanceId;
+  var statechartUrl = baseApi + '/';
+  var statechartChangesUrl = baseApi + '/_changes';
 
   var vizArea = $('#viz-area'),
     layout,
@@ -41,8 +43,26 @@ $(function() {
             isFirst = false;  
           }
 
+          if(!scxmlChangeSource) {
+            scxmlChangeSource = new EventSource(statechartChangesUrl);
+
+            scxmlChangeSource.addEventListener('message', function(e) {
+              var content = JSON.parse(e.data);
+              drawSimulation(content, 
+                function(){
+                  console.log('layout done');
+                }, 
+                function(){
+                  console.log('layout error');
+                });
+            }, false);
+          }
+
+          if(vizType === 'statechart') {
+            return;
+          }
+
           if (!eventChangeSource) {
-            console.log('instanceUrl ',instanceUrl);
             eventChangeSource = new EventSource(instanceUrl + '/_changes');
 
             eventChangeSource.addEventListener('onEntry', function(e) {

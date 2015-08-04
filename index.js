@@ -26,6 +26,45 @@ function init(initApi, pathToModel, cb){
   app.engine('html', require('ejs').renderFile);
   app.use(express.static(path.join(__dirname, './node_modules/expresscion-portal/app')));
   app.use(express.static(path.join(__dirname, './public')));
+  
+  //TODO: add a nice command-line interface
+  if(process.env.WATCH){
+    //watch parent directory, because file watching is unstable
+    var parent = path.resolve(pathToModel, '..');
+    var watcher = fs.watch(parent);
+
+    //publish changes on file
+    app.get(smaasJSON.basePath + '/_changes', function(req, res){
+      //read from file and publish
+      res.writeHead(200, {'Content-Type':'text/event-stream'});
+      var tDelta = new Date();
+      watcher.on('change',function(evt,fname){
+        if(path.basename(pathToModel) === fname) {
+          //debounce
+          if((new Date() - tDelta) > 300){
+            fs.readFile(pathToModel,function(err, data){
+              tDelta = new Date();
+              res.write('data: ' + JSON.stringify(data.toString()) + '\n\n');
+            });
+          }
+        }
+      });
+
+      //keep the connection open
+      var newlineHandle = setInterval(function(){
+        res.write('\n');
+      },5000)
+
+      req.on('end',function(){
+        res.close();
+        watcher.close();
+        clearInterval(newlineHandle);
+      });
+    });
+
+    //TODO - reparse?
+  }
+
   app.get('/:InstanceId/_viz', function (req, res) {
     res.render('viz.html', {
       type: 'instance'
@@ -80,6 +119,7 @@ function init(initApi, pathToModel, cb){
             }
             case 'delete': {
               app.delete(actualPath, handler);
+
               break;
             }
             default:{
