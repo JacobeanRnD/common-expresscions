@@ -78,12 +78,28 @@ function init(initApi, pathToModel, cb){
 
   var scxmlString = fs.readFileSync(pathToModel,'utf8');
 
-  //parse the SCXML and connect the SMaaS API
-  scxml.pathToModel(pathToModel, function(err, model){
+  switch(path.extname(pathToModel)){
+    case '.js':
+    case '.json':
+      //read SCJSON model from filesystem
+      var model = require(path.resolve('.',pathToModel));
+      onModelReady(model, scxmlString);
+      break;
+    case '.xml':
+    case '.scxml':
+      //parse the SCXML and connect the SMaaS API
+      scxml.pathToModel(pathToModel, function(err, model){
+        if(err) return cb(err); 
 
-    if(err) return cb(err); 
+        onModelReady(model, scxmlString);
+      });
+      break;
+    default:
+      return cb(new Error('Unknown file extension'));
+  }
 
-    var modelName = process.env.APP_NAME || model.meta.name;
+  function onModelReady(model, scxmlString){
+    var modelName = process.env.APP_NAME || (model.meta && model.meta.name);
     initApi(model, scxmlString, modelName, function(err, api){
 
       if(err) return cb(err);
@@ -131,7 +147,7 @@ function init(initApi, pathToModel, cb){
 
       cb(null, app); 
     });
-  });
+  }
 }
 
 module.exports.initExpress = init;
