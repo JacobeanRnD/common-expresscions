@@ -1,7 +1,7 @@
 {
   "name": "common-expresscions",
   "description": "common-expresscions packages all the components that are common between expresscion servers",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "homepage": "https://github.com/JacobeanRnD/common-expresscions",
   "main": "./index.js",
   "license": "LGPL-3.0",
@@ -21,7 +21,7 @@
     "body-parser": "^1.13.2",
     "ejs": "^2.3.2",
     "express": "^4.12.3",
-    "expresscion-portal": "1.0.1",
+    "expresscion-portal": "1.0.2",
     "scxml": "2.0.4",
     "smaas-swagger-spec": "2.0.0"
   }
