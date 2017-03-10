@@ -24,7 +24,8 @@ function init(initApi, pathToModel, cb){
   //init static visualization stuff
   app.set('views', path.join(__dirname, './views'));
   app.engine('html', require('ejs').renderFile);
-  app.use(express.static(path.join(__dirname, './node_modules/expresscion-portal/app')));
+  var pathToExpressPortal = path.join(path.dirname(require.resolve('expresscion-portal')),'app');
+  app.use(express.static(pathToExpressPortal));
   app.use(express.static(path.join(__dirname, './public')));
   
   //TODO: add a nice command-line interface

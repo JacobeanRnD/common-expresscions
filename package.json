@@ -1,7 +1,7 @@
 {
   "name": "common-expresscions",
   "description": "common-expresscions packages all the components that are common between expresscion servers",
-  "version": "1.6.1",
+  "version": "1.6.2",
   "homepage": "https://github.com/JacobeanRnD/common-expresscions",
   "main": "./index.js",
   "license": "LGPL-3.0",
